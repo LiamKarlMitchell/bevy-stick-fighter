@@ -537,6 +537,9 @@ fn update_combat_timers(
 /// Handle player movement input
 fn player_movement(
     keyboard: Res<ButtonInput<KeyCode>>,
+    gamepads: Res<Gamepads>,
+    button_inputs: Res<ButtonInput<GamepadButton>>,
+    axes: Res<Axis<GamepadAxis>>,
     mut query: Query<
         (&StickFighter, &mut LinearVelocity, &GroundedState, &CombatState, &GrappleState),
         With<PlayerController>,
@@ -552,7 +555,7 @@ fn player_movement(
 
         let mut direction = Vec3::ZERO;
 
-        // Horizontal movement
+        // Keyboard input
         if keyboard.pressed(KeyCode::KeyA) || keyboard.pressed(KeyCode::ArrowLeft) {
             direction.x -= 1.0;
         }
@@ -564,6 +567,24 @@ fn player_movement(
         }
         if keyboard.pressed(KeyCode::KeyS) || keyboard.pressed(KeyCode::ArrowDown) {
             direction.z += 1.0;
+        }
+
+        // Gamepad input (left stick)
+        for gamepad in gamepads.iter() {
+            let left_stick_x = axes
+                .get(GamepadAxis::new(gamepad, GamepadAxisType::LeftStickX))
+                .unwrap_or(0.0);
+            let left_stick_y = axes
+                .get(GamepadAxis::new(gamepad, GamepadAxisType::LeftStickY))
+                .unwrap_or(0.0);
+
+            // Apply deadzone
+            if left_stick_x.abs() > 0.1 {
+                direction.x += left_stick_x;
+            }
+            if left_stick_y.abs() > 0.1 {
+                direction.z -= left_stick_y; // Invert Y for forward/back
+            }
         }
 
         // Normalize direction for consistent diagonal movement
@@ -583,6 +604,8 @@ fn player_movement(
 /// Handle ducking
 fn player_duck(
     keyboard: Res<ButtonInput<KeyCode>>,
+    gamepads: Res<Gamepads>,
+    button_inputs: Res<ButtonInput<GamepadButton>>,
     mut query: Query<(&mut StickFighter, &GroundedState, &CombatState), With<PlayerController>>,
 ) {
     for (mut fighter, grounded, combat_state) in query.iter_mut() {
@@ -592,23 +615,41 @@ fn player_duck(
             continue;
         }
 
-        // Hold Shift or C to duck
-        fighter.is_ducking = keyboard.pressed(KeyCode::ShiftLeft)
+        // Keyboard: Hold Shift or C to duck
+        let keyboard_duck = keyboard.pressed(KeyCode::ShiftLeft)
             || keyboard.pressed(KeyCode::ShiftRight)
             || keyboard.pressed(KeyCode::KeyC);
+
+        // Gamepad: Hold LB/L1 to duck
+        let gamepad_duck = gamepads.iter().any(|gamepad| {
+            button_inputs.pressed(GamepadButton::new(gamepad, GamepadButtonType::LeftTrigger))
+        });
+
+        fighter.is_ducking = keyboard_duck || gamepad_duck;
     }
 }
 
 /// Handle jumping with directional control
 fn player_jump(
     keyboard: Res<ButtonInput<KeyCode>>,
+    gamepads: Res<Gamepads>,
+    button_inputs: Res<ButtonInput<GamepadButton>>,
+    axes: Res<Axis<GamepadAxis>>,
     mut query: Query<
         (&StickFighter, &mut LinearVelocity, &GroundedState, &CombatState),
         With<PlayerController>,
     >,
 ) {
     for (fighter, mut velocity, grounded, combat_state) in query.iter_mut() {
-        if keyboard.just_pressed(KeyCode::Space)
+        // Keyboard: Space to jump
+        let keyboard_jump = keyboard.just_pressed(KeyCode::Space);
+
+        // Gamepad: A/Cross to jump
+        let gamepad_jump = gamepads.iter().any(|gamepad| {
+            button_inputs.just_pressed(GamepadButton::new(gamepad, GamepadButtonType::South))
+        });
+
+        if (keyboard_jump || gamepad_jump)
             && grounded.is_grounded
             && combat_state.action_timer.finished()
             && !fighter.is_ducking {
@@ -616,18 +657,33 @@ fn player_jump(
             // Vertical jump force
             velocity.y = fighter.jump_force;
 
-            // Directional jumps
-            if keyboard.pressed(KeyCode::KeyW) || keyboard.pressed(KeyCode::ArrowUp) {
-                // Jump forward
+            // Directional jumps - check keyboard
+            let kb_forward = keyboard.pressed(KeyCode::KeyW) || keyboard.pressed(KeyCode::ArrowUp);
+            let kb_back = keyboard.pressed(KeyCode::KeyS) || keyboard.pressed(KeyCode::ArrowDown);
+            let kb_left = keyboard.pressed(KeyCode::KeyA) || keyboard.pressed(KeyCode::ArrowLeft);
+            let kb_right = keyboard.pressed(KeyCode::KeyD) || keyboard.pressed(KeyCode::ArrowRight);
+
+            // Directional jumps - check gamepad
+            let mut gp_x = 0.0;
+            let mut gp_y = 0.0;
+            for gamepad in gamepads.iter() {
+                gp_x = axes
+                    .get(GamepadAxis::new(gamepad, GamepadAxisType::LeftStickX))
+                    .unwrap_or(0.0);
+                gp_y = axes
+                    .get(GamepadAxis::new(gamepad, GamepadAxisType::LeftStickY))
+                    .unwrap_or(0.0);
+            }
+
+            if kb_forward || gp_y > 0.3 {
                 velocity.z -= fighter.jump_forward_force;
-            } else if keyboard.pressed(KeyCode::KeyS) || keyboard.pressed(KeyCode::ArrowDown) {
-                // Jump backward
+            } else if kb_back || gp_y < -0.3 {
                 velocity.z += fighter.jump_forward_force;
             }
 
-            if keyboard.pressed(KeyCode::KeyA) || keyboard.pressed(KeyCode::ArrowLeft) {
+            if kb_left || gp_x < -0.3 {
                 velocity.x -= fighter.jump_forward_force;
-            } else if keyboard.pressed(KeyCode::KeyD) || keyboard.pressed(KeyCode::ArrowRight) {
+            } else if kb_right || gp_x > 0.3 {
                 velocity.x += fighter.jump_forward_force;
             }
         }
@@ -637,11 +693,20 @@ fn player_jump(
 /// Handle blocking
 fn player_block(
     keyboard: Res<ButtonInput<KeyCode>>,
+    gamepads: Res<Gamepads>,
+    button_inputs: Res<ButtonInput<GamepadButton>>,
     mut query: Query<(&mut CombatState, &mut AnimationState, &GroundedState), With<PlayerController>>,
 ) {
     for (mut combat_state, mut anim_state, grounded) in query.iter_mut() {
-        // Hold B to block (only when grounded and not in action)
-        if keyboard.pressed(KeyCode::KeyB)
+        // Keyboard: Hold B to block
+        let keyboard_block = keyboard.pressed(KeyCode::KeyB);
+
+        // Gamepad: Hold RB/R1 to block
+        let gamepad_block = gamepads.iter().any(|gamepad| {
+            button_inputs.pressed(GamepadButton::new(gamepad, GamepadButtonType::RightTrigger))
+        });
+
+        if (keyboard_block || gamepad_block)
             && grounded.is_grounded
             && combat_state.action_timer.finished() {
             combat_state.block_active = true;
@@ -655,11 +720,20 @@ fn player_block(
 /// Handle parry timing
 fn player_parry(
     keyboard: Res<ButtonInput<KeyCode>>,
+    gamepads: Res<Gamepads>,
+    button_inputs: Res<ButtonInput<GamepadButton>>,
     mut query: Query<(&mut CombatState, &mut AnimationState, &GroundedState), With<PlayerController>>,
 ) {
     for (mut combat_state, mut anim_state, grounded) in query.iter_mut() {
-        // Press P to parry (timing window)
-        if keyboard.just_pressed(KeyCode::KeyP)
+        // Keyboard: Press P to parry
+        let keyboard_parry = keyboard.just_pressed(KeyCode::KeyP);
+
+        // Gamepad: Press Left Bumper to parry
+        let gamepad_parry = gamepads.iter().any(|gamepad| {
+            button_inputs.just_pressed(GamepadButton::new(gamepad, GamepadButtonType::LeftTrigger2))
+        });
+
+        if (keyboard_parry || gamepad_parry)
             && grounded.is_grounded
             && combat_state.can_parry
             && combat_state.action_timer.finished() {
@@ -711,6 +785,8 @@ fn spawn_hitbox(
 /// Handle player attack input
 fn player_attack(
     keyboard: Res<ButtonInput<KeyCode>>,
+    gamepads: Res<Gamepads>,
+    button_inputs: Res<ButtonInput<GamepadButton>>,
     mut commands: Commands,
     mut query: Query<
         (Entity, &Transform, &mut AnimationState, &mut CombatState, &StickFighter, &GroundedState),
@@ -728,10 +804,21 @@ fn player_attack(
         let is_airborne = !grounded.is_grounded;
         let is_ducking = fighter.is_ducking;
 
+        // Check gamepad inputs
+        let gamepad_punch = gamepads.iter().any(|gamepad| {
+            button_inputs.just_pressed(GamepadButton::new(gamepad, GamepadButtonType::West))
+        });
+        let gamepad_kick = gamepads.iter().any(|gamepad| {
+            button_inputs.just_pressed(GamepadButton::new(gamepad, GamepadButtonType::North))
+        });
+        let gamepad_slash = gamepads.iter().any(|gamepad| {
+            button_inputs.just_pressed(GamepadButton::new(gamepad, GamepadButtonType::East))
+        });
+
         // AERIAL ATTACKS
         if is_airborne {
-            // Jump Kick - K
-            if keyboard.just_pressed(KeyCode::KeyK) {
+            // Jump Kick - K / Y (North)
+            if keyboard.just_pressed(KeyCode::KeyK) || gamepad_kick {
                 *anim_state = AnimationState::JumpKick;
                 combat_state.action_timer = Timer::from_seconds(0.3, TimerMode::Once);
                 spawn_hitbox(
@@ -741,8 +828,8 @@ fn player_attack(
                     Color::srgba(1.0, 0.5, 0.0, 0.4),
                 );
             }
-            // Jump Punch - J
-            else if keyboard.just_pressed(KeyCode::KeyJ) {
+            // Jump Punch - J / X (West)
+            else if keyboard.just_pressed(KeyCode::KeyJ) || gamepad_punch {
                 *anim_state = AnimationState::JumpPunch;
                 combat_state.action_timer = Timer::from_seconds(0.25, TimerMode::Once);
                 spawn_hitbox(
@@ -752,8 +839,8 @@ fn player_attack(
                     Color::srgba(1.0, 0.2, 0.2, 0.4),
                 );
             }
-            // Jump Slash - L
-            else if keyboard.just_pressed(KeyCode::KeyL) {
+            // Jump Slash - L / B (East)
+            else if keyboard.just_pressed(KeyCode::KeyL) || gamepad_slash {
                 *anim_state = AnimationState::JumpSlash;
                 combat_state.action_timer = Timer::from_seconds(0.35, TimerMode::Once);
                 spawn_hitbox(
@@ -766,8 +853,8 @@ fn player_attack(
         }
         // DUCKING ATTACKS
         else if is_ducking {
-            // Duck Kick - K
-            if keyboard.just_pressed(KeyCode::KeyK) {
+            // Duck Kick - K / Y (North)
+            if keyboard.just_pressed(KeyCode::KeyK) || gamepad_kick {
                 *anim_state = AnimationState::DuckKick;
                 combat_state.action_timer = Timer::from_seconds(0.3, TimerMode::Once);
                 spawn_hitbox(
@@ -777,8 +864,8 @@ fn player_attack(
                     Color::srgba(0.8, 0.4, 0.0, 0.4),
                 );
             }
-            // Duck Slash - L
-            else if keyboard.just_pressed(KeyCode::KeyL) {
+            // Duck Slash - L / B (East)
+            else if keyboard.just_pressed(KeyCode::KeyL) || gamepad_slash {
                 *anim_state = AnimationState::DuckSlash;
                 combat_state.action_timer = Timer::from_seconds(0.3, TimerMode::Once);
                 spawn_hitbox(
@@ -791,8 +878,8 @@ fn player_attack(
         }
         // GROUND ATTACKS
         else {
-            // Punch - J
-            if keyboard.just_pressed(KeyCode::KeyJ) {
+            // Punch - J / X (West)
+            if keyboard.just_pressed(KeyCode::KeyJ) || gamepad_punch {
                 *anim_state = AnimationState::Punching;
                 combat_state.action_timer = Timer::from_seconds(0.2, TimerMode::Once);
                 combat_state.combo_count += 1;
@@ -805,8 +892,8 @@ fn player_attack(
                     Color::srgba(1.0, 0.0, 0.0, 0.3),
                 );
             }
-            // Kick - K
-            else if keyboard.just_pressed(KeyCode::KeyK) {
+            // Kick - K / Y (North)
+            else if keyboard.just_pressed(KeyCode::KeyK) || gamepad_kick {
                 *anim_state = AnimationState::Kicking;
                 combat_state.action_timer = Timer::from_seconds(0.25, TimerMode::Once);
                 combat_state.combo_count += 1;
@@ -819,8 +906,8 @@ fn player_attack(
                     Color::srgba(1.0, 0.5, 0.0, 0.3),
                 );
             }
-            // Slash - L
-            else if keyboard.just_pressed(KeyCode::KeyL) {
+            // Slash - L / B (East)
+            else if keyboard.just_pressed(KeyCode::KeyL) || gamepad_slash {
                 *anim_state = AnimationState::Slashing;
                 combat_state.action_timer = Timer::from_seconds(0.3, TimerMode::Once);
                 combat_state.combo_count += 1;
@@ -840,6 +927,8 @@ fn player_attack(
 /// Handle grapple and throw
 fn player_grapple(
     keyboard: Res<ButtonInput<KeyCode>>,
+    gamepads: Res<Gamepads>,
+    button_inputs: Res<ButtonInput<GamepadButton>>,
     mut commands: Commands,
     mut query: Query<
         (Entity, &Transform, &mut AnimationState, &mut GrappleState, &CombatState),
@@ -853,8 +942,13 @@ fn player_grapple(
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     for (entity, transform, mut anim_state, mut grapple_state, combat_state) in query.iter_mut() {
-        // Press G to initiate grapple
-        if keyboard.just_pressed(KeyCode::KeyG) && !grapple_state.is_grappling && combat_state.action_timer.finished() {
+        // Press G / RB (RightTrigger2) to initiate grapple
+        let keyboard_grapple = keyboard.just_pressed(KeyCode::KeyG);
+        let gamepad_grapple = gamepads.iter().any(|gamepad| {
+            button_inputs.just_pressed(GamepadButton::new(gamepad, GamepadButtonType::RightTrigger2))
+        });
+
+        if (keyboard_grapple || gamepad_grapple) && !grapple_state.is_grappling && combat_state.action_timer.finished() {
             // Find nearby enemy to grapple
             for (target_entity, target_transform, mut target_anim) in target_query.iter_mut() {
                 let distance = transform.translation.distance(target_transform.translation);
@@ -871,8 +965,13 @@ fn player_grapple(
             }
         }
 
-        // Press T to throw (while grappling)
-        if keyboard.just_pressed(KeyCode::KeyT) && grapple_state.is_grappling {
+        // Press T / R3 (RightThumb) to throw (while grappling)
+        let keyboard_throw = keyboard.just_pressed(KeyCode::KeyT);
+        let gamepad_throw = gamepads.iter().any(|gamepad| {
+            button_inputs.just_pressed(GamepadButton::new(gamepad, GamepadButtonType::RightThumb))
+        });
+
+        if (keyboard_throw || gamepad_throw) && grapple_state.is_grappling {
             *anim_state = AnimationState::Throwing;
 
             if let Some(target_entity) = grapple_state.grappled_entity {

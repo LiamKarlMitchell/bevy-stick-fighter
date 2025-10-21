@@ -1,5 +1,21 @@
 # Stick Fighter Controls
 
+## Controller Support
+
+This game supports both **keyboard** and **gamepad/controller** input! All controls work simultaneously, so you can use whichever you prefer or switch between them at any time.
+
+**Gamepad Button Layout:**
+- **Left Stick**: Movement (8-way directional)
+- **A/Cross (South)**: Jump
+- **X/Square (West)**: Punch
+- **Y/Triangle (North)**: Kick
+- **B/Circle (East)**: Slash
+- **LT/L2 (LeftTrigger)**: Duck
+- **LB/L1 (LeftTrigger2)**: Parry
+- **RT/R2 (RightTrigger)**: Block
+- **RB/R1 (RightTrigger2)**: Grapple
+- **R3 (RightThumb)**: Throw
+
 ## User Interface
 
 ### Health Bar (Top Left)
@@ -44,6 +60,7 @@ Perfect for practicing defense, parrying, and real combat!
 
 ## Movement Controls
 
+### Keyboard
 - **W / Up Arrow**: Move forward (away from camera)
 - **S / Down Arrow**: Move backward (toward camera)
 - **A / Left Arrow**: Move left
@@ -51,8 +68,14 @@ Perfect for practicing defense, parrying, and real combat!
 - **Space**: Jump (hold direction for directional jump)
 - **Shift / C**: Duck (hold to stay ducked)
 
+### Gamepad
+- **Left Stick**: Move in any direction (8-way)
+- **A/Cross**: Jump (hold stick direction for directional jump)
+- **LT/L2**: Duck (hold to stay ducked)
+
 ## Directional Jumping
 
+### Keyboard
 Press **Space** while holding a direction key to jump in that direction:
 - **Space + W**: Jump forward
 - **Space + S**: Jump backward
@@ -60,55 +83,103 @@ Press **Space** while holding a direction key to jump in that direction:
 - **Space + D**: Jump right
 - Diagonal jumps work too!
 
+### Gamepad
+Press **A/Cross** while holding the **Left Stick** in any direction:
+- **A/Cross + Stick Up**: Jump forward
+- **A/Cross + Stick Down**: Jump backward
+- **A/Cross + Stick Left**: Jump left
+- **A/Cross + Stick Right**: Jump right
+- Diagonal jumps work too!
+
 ## Ground Attacks
 
 When standing or moving on the ground:
+
+### Keyboard
 - **J**: Punch (10 damage, fast)
 - **K**: Kick (15 damage, medium)
 - **L**: Slash (18 damage, slower but powerful)
 
+### Gamepad
+- **X/Square**: Punch (10 damage, fast)
+- **Y/Triangle**: Kick (15 damage, medium)
+- **B/Circle**: Slash (18 damage, slower but powerful)
+
 ## Aerial Attacks
 
 While in the air:
+
+### Keyboard
 - **J**: Jump Punch (12 damage)
 - **K**: Jump Kick (18 damage)
 - **L**: Jump Slash (20 damage - most powerful aerial)
 
+### Gamepad
+- **X/Square**: Jump Punch (12 damage)
+- **Y/Triangle**: Jump Kick (18 damage)
+- **B/Circle**: Jump Slash (20 damage - most powerful aerial)
+
 ## Ducking Attacks
 
-While holding **Shift** or **C** to duck:
+While holding **Shift/C** (keyboard) or **LT/L2** (gamepad) to duck:
+
+### Keyboard
 - **K**: Duck Kick (12 damage, low attack)
 - **L**: Duck Slash (15 damage, sweeping low attack)
+
+### Gamepad
+- **Y/Triangle**: Duck Kick (12 damage, low attack)
+- **B/Circle**: Duck Slash (15 damage, sweeping low attack)
 
 Note: You move slower while ducking (50% speed)
 
 ## Defensive Mechanics
 
 ### Blocking
+
+#### Keyboard
 - **B** (hold): Block incoming attacks
-  - Reduces damage by 80% while active
-  - Can only block while grounded
-  - Cannot move or attack while blocking
+
+#### Gamepad
+- **RT/R2** (hold): Block incoming attacks
+
+**Blocking mechanics:**
+- Reduces damage by 80% while active
+- Can only block while grounded
+- Cannot move or attack while blocking
 
 ### Parry & Counter
+
+#### Keyboard
 - **P**: Parry (precise timing required)
-  - 200ms parry window
-  - If timed correctly, automatically counters with 1.5x damage
-  - Brief cooldown after use
-  - High risk, high reward!
+
+#### Gamepad
+- **LB/L1**: Parry (precise timing required)
+
+**Parry mechanics:**
+- 200ms parry window
+- If timed correctly, automatically counters with 1.5x damage
+- Brief cooldown after use
+- High risk, high reward!
 
 ## Grappling System
 
 ### Grab & Throw
-- **G**: Grapple nearby opponent (1.5 unit range)
-  - Holds opponent for up to 1 second
-  - Opponent cannot escape during grapple
-  - Pulls them close to you
 
+#### Keyboard
+- **G**: Grapple nearby opponent (1.5 unit range)
 - **T**: Throw (while grappling)
-  - 25 damage - one of the most powerful moves!
-  - Launches opponent away
-  - Ends the grapple
+
+#### Gamepad
+- **RB/R1**: Grapple nearby opponent (1.5 unit range)
+- **R3** (Right Stick Click): Throw (while grappling)
+
+**Grappling mechanics:**
+- Holds opponent for up to 1 second
+- Opponent cannot escape during grapple
+- Pulls them close to you
+- Throw deals 25 damage - one of the most powerful moves!
+- Throw launches opponent away and ends the grapple
 
 ## Combat Mechanics
 
