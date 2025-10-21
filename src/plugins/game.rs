@@ -31,6 +31,9 @@ pub(crate) fn plugin(app: &mut App) {
                 ai_opponent_guard_update,
                 ai_opponent_position_reset,
                 update_health_bar,
+                animate_damage_numbers,
+                cleanup_expired_damage_numbers,
+                update_hitbox_glow,
             ),
         );
 }
@@ -980,13 +983,15 @@ fn despawn_expired_hitboxes(
 
 /// Apply damage when hitboxes hit fighters
 fn apply_damage(
-    mut hitbox_query: Query<(&Transform, &mut AttackHitbox)>,
+    mut commands: Commands,
+    mut hitbox_query: Query<(Entity, &Transform, &mut AttackHitbox, &MeshMaterial3d<StandardMaterial>)>,
     mut fighter_query: Query<
         (Entity, &Transform, &mut StickFighter, &mut AnimationState, &CombatState),
         Without<AttackHitbox>,
     >,
+    mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    for (hitbox_transform, mut hitbox) in hitbox_query.iter_mut() {
+    for (hitbox_entity, hitbox_transform, mut hitbox, hitbox_material) in hitbox_query.iter_mut() {
         for (fighter_entity, fighter_transform, mut fighter, mut anim_state, combat_state) in fighter_query.iter_mut() {
             // Don't hit yourself
             if fighter_entity == hitbox.attacker {
@@ -1001,14 +1006,34 @@ fn apply_damage(
             let distance = hitbox_transform.translation.distance(fighter_transform.translation);
 
             if distance < 1.0 {
+                let actual_damage;
+
                 // Check if blocking
                 if combat_state.block_active {
                     // Blocked! Reduce damage significantly
-                    fighter.health = (fighter.health - hitbox.damage * 0.2).max(0.0);
+                    actual_damage = hitbox.damage * 0.2;
+                    fighter.health = (fighter.health - actual_damage).max(0.0);
                 } else {
                     // Full damage
-                    fighter.health = (fighter.health - hitbox.damage).max(0.0);
+                    actual_damage = hitbox.damage;
+                    fighter.health = (fighter.health - actual_damage).max(0.0);
                     *anim_state = AnimationState::Hit;
+                }
+
+                // Spawn damage number at hit location
+                spawn_damage_number(
+                    &mut commands,
+                    hitbox_transform.translation + Vec3::new(0.0, 0.5, 0.0),
+                    actual_damage,
+                    combat_state.block_active,
+                );
+
+                // Add glow effect to hitbox
+                if let Some(material) = materials.get(hitbox_material.0.id()) {
+                    commands.entity(hitbox_entity).insert(HitboxGlow {
+                        glow_timer: Timer::from_seconds(0.15, TimerMode::Once),
+                        original_color: material.base_color,
+                    });
                 }
 
                 // Mark this entity as hit
@@ -1401,6 +1426,108 @@ fn ai_opponent_position_reset(
             velocity.0 = Vec3::ZERO;
             knockdown_state.is_knocked_down = false;
             *anim_state = AnimationState::Idle;
+        }
+    }
+}
+
+/// Helper function to spawn a damage number
+fn spawn_damage_number(
+    commands: &mut Commands,
+    position: Vec3,
+    damage: f32,
+    was_blocked: bool,
+) {
+    let damage_text = format!("{:.0}", damage);
+    let color = if was_blocked {
+        Color::srgb(0.7, 0.7, 0.7) // Gray for blocked damage
+    } else {
+        Color::srgb(1.0, 0.3, 0.3) // Red for full damage
+    };
+
+    commands.spawn((
+        Text3d::new(damage_text),
+        TextFont {
+            font_size: 32.0,
+            ..default()
+        },
+        TextColor(color),
+        Transform::from_translation(position),
+        DamageNumber {
+            lifetime: Timer::from_seconds(1.5, TimerMode::Once),
+            velocity: Vec3::new(
+                (rand::random::<f32>() - 0.5) * 0.5, // Small random horizontal drift
+                2.0, // Upward movement
+                0.0
+            ),
+            initial_y: position.y,
+        },
+    ));
+}
+
+/// Animate damage numbers - drift up and fade out
+fn animate_damage_numbers(
+    mut query: Query<(&mut Transform, &mut TextColor, &mut DamageNumber)>,
+    time: Res<Time>,
+) {
+    for (mut transform, mut text_color, mut damage_num) in query.iter_mut() {
+        // Tick lifetime
+        damage_num.lifetime.tick(time.delta());
+
+        // Move upward
+        transform.translation += damage_num.velocity * time.delta_secs();
+
+        // Fade out based on lifetime
+        let progress = damage_num.lifetime.fraction();
+        let alpha = 1.0 - progress; // Fade from 1.0 to 0.0
+
+        // Update alpha channel
+        let mut color = text_color.0;
+        color.set_alpha(alpha);
+        text_color.0 = color;
+    }
+}
+
+/// Cleanup expired damage numbers
+fn cleanup_expired_damage_numbers(
+    mut commands: Commands,
+    query: Query<(Entity, &DamageNumber)>,
+) {
+    for (entity, damage_num) in query.iter() {
+        if damage_num.lifetime.finished() {
+            commands.entity(entity).despawn();
+        }
+    }
+}
+
+/// Update hitbox glow effect
+fn update_hitbox_glow(
+    mut commands: Commands,
+    mut query: Query<(Entity, &mut HitboxGlow, &MeshMaterial3d<StandardMaterial>)>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    time: Res<Time>,
+) {
+    for (entity, mut glow, material_handle) in query.iter_mut() {
+        glow.glow_timer.tick(time.delta());
+
+        if let Some(material) = materials.get_mut(material_handle.0.id()) {
+            if glow.glow_timer.finished() {
+                // Restore original color
+                material.base_color = glow.original_color;
+                // Remove glow component
+                commands.entity(entity).remove::<HitboxGlow>();
+            } else {
+                // Apply glow effect (brighten)
+                let progress = glow.glow_timer.fraction();
+                let glow_intensity = 1.0 - progress; // Fade glow
+
+                // Make it brighter white
+                material.base_color = Color::srgba(
+                    1.0,
+                    1.0,
+                    1.0,
+                    glow.original_color.alpha() + glow_intensity * 0.5,
+                );
+            }
         }
     }
 }

@@ -219,3 +219,37 @@ impl Default for AIOpponent {
     }
 }
 
+/// Damage number component - floats up and fades out
+#[derive(Component)]
+pub struct DamageNumber {
+    pub lifetime: Timer,
+    pub velocity: Vec3,
+    pub initial_y: f32,
+}
+
+impl Default for DamageNumber {
+    fn default() -> Self {
+        Self {
+            lifetime: Timer::from_seconds(1.5, TimerMode::Once),
+            velocity: Vec3::new(0.0, 2.0, 0.0), // Drift upward at 2 units/sec
+            initial_y: 0.0,
+        }
+    }
+}
+
+/// Hitbox glow effect component
+#[derive(Component)]
+pub struct HitboxGlow {
+    pub glow_timer: Timer,
+    pub original_color: Color,
+}
+
+impl Default for HitboxGlow {
+    fn default() -> Self {
+        Self {
+            glow_timer: Timer::from_seconds(0.15, TimerMode::Once),
+            original_color: Color::WHITE,
+        }
+    }
+}
+
