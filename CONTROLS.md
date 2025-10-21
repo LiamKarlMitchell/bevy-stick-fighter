@@ -1,5 +1,16 @@
 # Stick Fighter Controls
 
+## User Interface
+
+### Health Bar (Top Left)
+- **Label**: "PLAYER HEALTH" in white text
+- **Bar**: 300px wide red health bar with white border
+- **Updates**: Real-time based on current health
+- **Color**: Red fill (0-100% width)
+- **Position**: 20px from top-left corner
+
+Your health is displayed as a percentage of the bar's width. When you take damage, the bar shrinks. Full health = full bar!
+
 ## Training Dummy
 
 A **blue training dummy** spawns in front of you to practice combos and test damage:

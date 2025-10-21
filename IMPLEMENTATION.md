@@ -85,6 +85,10 @@ Tracks knockdown and recovery:
 - `is_knocked_down`: Currently knocked down flag
 - `recovery_timer`: 2 second timer before getting back up
 
+#### UI Components
+- `HealthBarUI`: Marks the health bar container entity
+- `HealthBarFill`: Marks the health bar fill element (updates width)
+
 #### Other Components
 - `StickFigureRoot`: Marks the root entity
 - `PlayerController`: Identifies player-controlled characters
@@ -127,6 +131,18 @@ Spawns a training opponent for practice:
 4. Adds TrainingDummy and KnockdownState components
 5. No PlayerController - won't respond to input
 6. Stands still for combo practice and damage testing
+
+#### `setup_health_bar_ui`
+Creates the player health bar UI:
+1. Spawns root UI node at top-left (20px, 20px)
+2. Creates "PLAYER HEALTH" text label (white, 14px font)
+3. Creates health bar container (300x20px) with:
+   - White 2px border
+   - Dark gray background (0.2, 0.2, 0.2)
+4. Creates health bar fill (red 0.8, 0.2, 0.2):
+   - Width: 100% initially
+   - Updated dynamically by update_health_bar system
+5. Uses Bevy UI flexbox layout
 
 ### Update Systems
 
@@ -300,6 +316,14 @@ Prevents dummy from getting lost:
 - If >15 units away, teleport back to spawn
 - Resets velocity and knockdown state
 - Ensures dummy stays in practice area
+
+#### `update_health_bar`
+Updates the health bar UI in real-time:
+- Queries player StickFighter for current health
+- Calculates health percentage (health / max_health * 100)
+- Updates HealthBarFill width to match percentage
+- Clamps between 0-100%
+- Visual feedback: Full bar = 100 HP, Empty bar = 0 HP
 
 ## Combat Mechanics Deep Dive
 

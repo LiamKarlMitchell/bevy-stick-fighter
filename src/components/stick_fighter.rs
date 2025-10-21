@@ -186,3 +186,12 @@ impl Default for KnockdownState {
         }
     }
 }
+
+/// Marker component for health bar UI container
+#[derive(Component)]
+pub struct HealthBarUI;
+
+/// Marker component for the health bar fill (the red/green part)
+#[derive(Component)]
+pub struct HealthBarFill;
+

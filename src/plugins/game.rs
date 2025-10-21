@@ -4,7 +4,7 @@ use bevy::prelude::*;
 use crate::components::stick_fighter::*;
 
 pub(crate) fn plugin(app: &mut App) {
-    app.add_systems(Startup, (setup_arena, spawn_stick_fighter, spawn_training_dummy))
+    app.add_systems(Startup, (setup_arena, spawn_stick_fighter, spawn_training_dummy, setup_health_bar_ui))
         .add_systems(
             Update,
             (
@@ -26,6 +26,7 @@ pub(crate) fn plugin(app: &mut App) {
                 training_dummy_knockdown_check,
                 training_dummy_recovery,
                 training_dummy_position_reset,
+                update_health_bar,
             ),
         );
 }
@@ -1032,5 +1033,79 @@ fn training_dummy_position_reset(
             knockdown_state.is_knocked_down = false;
             *anim_state = AnimationState::Idle;
         }
+    }
+}
+
+/// Setup the health bar UI in the top left corner
+fn setup_health_bar_ui(mut commands: Commands) {
+    // Root UI node
+    commands
+        .spawn((
+            Node {
+                position_type: PositionType::Absolute,
+                left: Val::Px(20.0),
+                top: Val::Px(20.0),
+                width: Val::Px(300.0),
+                height: Val::Px(40.0),
+                flex_direction: FlexDirection::Column,
+                ..default()
+            },
+            HealthBarUI,
+        ))
+        .with_children(|parent| {
+            // Health text label
+            parent.spawn((
+                Text::new("PLAYER HEALTH"),
+                TextFont {
+                    font_size: 14.0,
+                    ..default()
+                },
+                TextColor(Color::WHITE),
+                Node {
+                    margin: UiRect::bottom(Val::Px(4.0)),
+                    ..default()
+                },
+            ));
+
+            // Health bar container (border/background)
+            parent
+                .spawn(Node {
+                    width: Val::Px(300.0),
+                    height: Val::Px(20.0),
+                    border: UiRect::all(Val::Px(2.0)),
+                    ..default()
+                })
+                .insert(BorderColor(Color::WHITE))
+                .insert(BackgroundColor(Color::srgb(0.2, 0.2, 0.2)))
+                .with_children(|parent| {
+                    // Health bar fill (the actual health indicator)
+                    parent.spawn((
+                        Node {
+                            width: Val::Percent(100.0), // Will be updated based on health
+                            height: Val::Percent(100.0),
+                            ..default()
+                        },
+                        BackgroundColor(Color::srgb(0.8, 0.2, 0.2)), // Red health bar
+                        HealthBarFill,
+                    ));
+                });
+        });
+}
+
+/// Update health bar based on player health
+fn update_health_bar(
+    player_query: Query<&StickFighter, With<PlayerController>>,
+    mut health_bar_query: Query<&mut Node, With<HealthBarFill>>,
+) {
+    // Get player health
+    let Ok(fighter) = player_query.get_single() else {
+        return;
+    };
+
+    // Update health bar fill width
+    let health_percent = (fighter.health / fighter.max_health * 100.0).max(0.0).min(100.0);
+
+    for mut style in health_bar_query.iter_mut() {
+        style.width = Val::Percent(health_percent);
     }
 }
