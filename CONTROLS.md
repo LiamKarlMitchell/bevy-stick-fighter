@@ -11,18 +11,36 @@
 
 Your health is displayed as a percentage of the bar's width. When you take damage, the bar shrinks. Full health = full bar!
 
-## Training Dummy
+## Training Opponents
 
-A **blue training dummy** spawns in front of you to practice combos and test damage:
+### Passive Dummy (Blue)
+A **blue training dummy** spawns in front of you for basic practice:
 - **Color**: Blue (you are red)
-- **Position**: Stands 5 units in front of you
+- **Position**: Center, 5 units in front
 - **Health**: 100 HP with 20 HP/sec regeneration
-- **Behavior**: Stands still, does not attack
+- **Behavior**: Stands still, does not attack or guard
 - **Knockdown**: Gets knocked down when hit hard or health < 20
 - **Recovery**: Gets back up after 2 seconds on the ground
 - **Reset**: Teleports back to spawn if knocked too far (>15 units)
 
-Perfect for testing combos, damage values, and grapple throws!
+Perfect for testing combos and damage values!
+
+### AI Opponent (Orange)
+An **orange AI opponent** that fights back for realistic practice:
+- **Color**: Orange
+- **Position**: 3 units to the right of blue dummy
+- **Health**: 100 HP with 15 HP/sec regeneration
+- **Behavior**: Attacks and guards when you're within 5 units
+- **AI Actions**:
+  - 40% chance to attack (punch/kick/slash randomly)
+  - 30% chance to guard (blocks for 1 second)
+  - 30% chance to idle
+  - Makes decisions every 1.5 seconds
+- **Attack Cooldown**: 2 seconds between attacks
+- **Guard Cooldown**: 3 seconds between guards
+- **Movement**: Does not walk, stays in place
+
+Perfect for practicing defense, parrying, and real combat!
 
 ## Movement Controls
 

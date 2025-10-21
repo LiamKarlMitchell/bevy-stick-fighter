@@ -4,7 +4,7 @@ use bevy::prelude::*;
 use crate::components::stick_fighter::*;
 
 pub(crate) fn plugin(app: &mut App) {
-    app.add_systems(Startup, (setup_arena, spawn_stick_fighter, spawn_training_dummy, setup_health_bar_ui))
+    app.add_systems(Startup, (setup_arena, spawn_stick_fighter, spawn_training_dummy, spawn_ai_opponent, setup_health_bar_ui))
         .add_systems(
             Update,
             (
@@ -26,6 +26,10 @@ pub(crate) fn plugin(app: &mut App) {
                 training_dummy_knockdown_check,
                 training_dummy_recovery,
                 training_dummy_position_reset,
+                ai_opponent_health_regen,
+                ai_opponent_decision_making,
+                ai_opponent_guard_update,
+                ai_opponent_position_reset,
                 update_health_bar,
             ),
         );
@@ -330,6 +334,151 @@ fn spawn_training_dummy(
             BodyPart::RightLowerLeg,
             Mesh3d(meshes.add(Capsule3d::new(0.1, 0.5))),
             MeshMaterial3d(dummy_material.clone()),
+            Transform::from_xyz(-0.15, -0.9, 0.0),
+        ))
+        .id();
+
+    // Add all body parts as children of the root
+    commands.entity(root).add_children(&[
+        head,
+        torso,
+        left_upper_arm,
+        left_lower_arm,
+        right_upper_arm,
+        right_lower_arm,
+        left_upper_leg,
+        left_lower_leg,
+        right_upper_leg,
+        right_lower_leg,
+    ]);
+}
+
+/// Spawn an AI opponent that attacks and guards
+fn spawn_ai_opponent(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    let ai_material = materials.add(StandardMaterial {
+        base_color: Color::srgb(0.8, 0.5, 0.2), // Orange color
+        ..default()
+    });
+
+    let spawn_pos = Vec3::new(3.0, 5.0, -5.0);
+
+    // Create the AI opponent
+    let root = commands
+        .spawn((
+            StickFigureRoot,
+            StickFighter::default(),
+            AIOpponent {
+                spawn_position: spawn_pos,
+                ..default()
+            },
+            KnockdownState::default(),
+            AnimationState::Idle,
+            GroundedState::default(),
+            CombatState::default(),
+            GrappleState::default(),
+            Transform::from_xyz(spawn_pos.x, spawn_pos.y, spawn_pos.z),
+            Visibility::default(),
+            RigidBody::Dynamic,
+            Collider::capsule(0.3, 1.0),
+            LockedAxes::ROTATION_LOCKED,
+            LinearVelocity::default(),
+        ))
+        .id();
+
+    // Head
+    let head = commands
+        .spawn((
+            BodyPart::Head,
+            Mesh3d(meshes.add(Sphere::new(0.3))),
+            MeshMaterial3d(ai_material.clone()),
+            Transform::from_xyz(0.0, 1.2, 0.0),
+        ))
+        .id();
+
+    // Torso
+    let torso = commands
+        .spawn((
+            BodyPart::Torso,
+            Mesh3d(meshes.add(Capsule3d::new(0.15, 0.8))),
+            MeshMaterial3d(ai_material.clone()),
+            Transform::from_xyz(0.0, 0.4, 0.0),
+        ))
+        .id();
+
+    // Arms
+    let left_upper_arm = commands
+        .spawn((
+            BodyPart::LeftUpperArm,
+            Mesh3d(meshes.add(Capsule3d::new(0.08, 0.4))),
+            MeshMaterial3d(ai_material.clone()),
+            Transform::from_xyz(0.3, 0.8, 0.0).with_rotation(Quat::from_rotation_z(0.5)),
+        ))
+        .id();
+
+    let left_lower_arm = commands
+        .spawn((
+            BodyPart::LeftLowerArm,
+            Mesh3d(meshes.add(Capsule3d::new(0.08, 0.4))),
+            MeshMaterial3d(ai_material.clone()),
+            Transform::from_xyz(0.6, 0.5, 0.0).with_rotation(Quat::from_rotation_z(0.8)),
+        ))
+        .id();
+
+    let right_upper_arm = commands
+        .spawn((
+            BodyPart::RightUpperArm,
+            Mesh3d(meshes.add(Capsule3d::new(0.08, 0.4))),
+            MeshMaterial3d(ai_material.clone()),
+            Transform::from_xyz(-0.3, 0.8, 0.0).with_rotation(Quat::from_rotation_z(-0.5)),
+        ))
+        .id();
+
+    let right_lower_arm = commands
+        .spawn((
+            BodyPart::RightLowerArm,
+            Mesh3d(meshes.add(Capsule3d::new(0.08, 0.4))),
+            MeshMaterial3d(ai_material.clone()),
+            Transform::from_xyz(-0.6, 0.5, 0.0).with_rotation(Quat::from_rotation_z(-0.8)),
+        ))
+        .id();
+
+    // Legs
+    let left_upper_leg = commands
+        .spawn((
+            BodyPart::LeftUpperLeg,
+            Mesh3d(meshes.add(Capsule3d::new(0.1, 0.5))),
+            MeshMaterial3d(ai_material.clone()),
+            Transform::from_xyz(0.15, -0.3, 0.0),
+        ))
+        .id();
+
+    let left_lower_leg = commands
+        .spawn((
+            BodyPart::LeftLowerLeg,
+            Mesh3d(meshes.add(Capsule3d::new(0.1, 0.5))),
+            MeshMaterial3d(ai_material.clone()),
+            Transform::from_xyz(0.15, -0.9, 0.0),
+        ))
+        .id();
+
+    let right_upper_leg = commands
+        .spawn((
+            BodyPart::RightUpperLeg,
+            Mesh3d(meshes.add(Capsule3d::new(0.1, 0.5))),
+            MeshMaterial3d(ai_material.clone()),
+            Transform::from_xyz(-0.15, -0.3, 0.0),
+        ))
+        .id();
+
+    let right_lower_leg = commands
+        .spawn((
+            BodyPart::RightLowerLeg,
+            Mesh3d(meshes.add(Capsule3d::new(0.1, 0.5))),
+            MeshMaterial3d(ai_material.clone()),
             Transform::from_xyz(-0.15, -0.9, 0.0),
         ))
         .id();
@@ -1107,5 +1256,151 @@ fn update_health_bar(
 
     for mut style in health_bar_query.iter_mut() {
         style.width = Val::Percent(health_percent);
+    }
+}
+
+/// Regenerate AI opponent health over time
+fn ai_opponent_health_regen(
+    mut query: Query<(&mut StickFighter, &AIOpponent)>,
+    time: Res<Time>,
+) {
+    for (mut fighter, ai) in query.iter_mut() {
+        if fighter.health < fighter.max_health {
+            fighter.health = (fighter.health + ai.health_regen_rate * time.delta_secs())
+                .min(fighter.max_health);
+        }
+    }
+}
+
+/// AI decision making - attack or guard
+fn ai_opponent_decision_making(
+    mut commands: Commands,
+    mut query: Query<
+        (Entity, &Transform, &mut AIOpponent, &mut CombatState, &GroundedState, &KnockdownState),
+        With<AIOpponent>,
+    >,
+    player_query: Query<&Transform, (With<PlayerController>, Without<AIOpponent>)>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    time: Res<Time>,
+) {
+    for (entity, transform, mut ai, mut combat_state, grounded, knockdown_state) in query.iter_mut() {
+        // Don't act while knocked down or in action
+        if knockdown_state.is_knocked_down || !combat_state.action_timer.finished() {
+            continue;
+        }
+
+        // Tick timers
+        ai.decision_timer.tick(time.delta());
+        ai.attack_cooldown.tick(time.delta());
+        ai.guard_cooldown.tick(time.delta());
+
+        // Only make decisions when timer triggers
+        if !ai.decision_timer.just_finished() {
+            continue;
+        }
+
+        // Find player distance
+        let player_distance = if let Ok(player_transform) = player_query.get_single() {
+            transform.translation.distance(player_transform.translation)
+        } else {
+            100.0 // No player found, stay idle
+        };
+
+        // AI only acts when player is close (within 5 units)
+        if player_distance > 5.0 {
+            continue;
+        }
+
+        // Random decision: 40% attack, 30% guard, 30% idle
+        let rand_val = rand::random::<f32>();
+
+        if rand_val < 0.4 && ai.attack_cooldown.finished() && grounded.is_grounded {
+            // ATTACK - random attack type
+            let attack_rand = rand::random::<f32>();
+
+            if attack_rand < 0.33 {
+                // Punch
+                combat_state.action_timer = Timer::from_seconds(0.2, TimerMode::Once);
+                ai.attack_cooldown = Timer::from_seconds(2.0, TimerMode::Once);
+
+                spawn_hitbox(
+                    &mut commands, &mut meshes, &mut materials,
+                    entity, AttackType::Punch, transform,
+                    Vec3::new(0.0, 0.2, 0.8), 0.3, 10.0, 0.2,
+                    Color::srgba(1.0, 0.0, 0.0, 0.3),
+                );
+            } else if attack_rand < 0.66 {
+                // Kick
+                combat_state.action_timer = Timer::from_seconds(0.25, TimerMode::Once);
+                ai.attack_cooldown = Timer::from_seconds(2.0, TimerMode::Once);
+
+                spawn_hitbox(
+                    &mut commands, &mut meshes, &mut materials,
+                    entity, AttackType::Kick, transform,
+                    Vec3::new(0.0, -0.3, 1.0), 0.4, 15.0, 0.25,
+                    Color::srgba(1.0, 0.5, 0.0, 0.3),
+                );
+            } else {
+                // Slash
+                combat_state.action_timer = Timer::from_seconds(0.3, TimerMode::Once);
+                ai.attack_cooldown = Timer::from_seconds(2.0, TimerMode::Once);
+
+                spawn_hitbox(
+                    &mut commands, &mut meshes, &mut materials,
+                    entity, AttackType::Slash, transform,
+                    Vec3::new(0.0, 0.0, 1.0), 0.45, 18.0, 0.3,
+                    Color::srgba(0.5, 0.5, 1.0, 0.3),
+                );
+            }
+        } else if rand_val < 0.7 && ai.guard_cooldown.finished() {
+            // GUARD
+            combat_state.block_active = true;
+            ai.guard_duration = Timer::from_seconds(1.0, TimerMode::Once);
+            ai.guard_cooldown = Timer::from_seconds(3.0, TimerMode::Once);
+        }
+    }
+}
+
+/// Update AI guard state
+fn ai_opponent_guard_update(
+    mut query: Query<(&mut AIOpponent, &mut CombatState), With<AIOpponent>>,
+    time: Res<Time>,
+) {
+    for (mut ai, mut combat_state) in query.iter_mut() {
+        if combat_state.block_active {
+            ai.guard_duration.tick(time.delta());
+
+            // Stop guarding after duration
+            if ai.guard_duration.finished() {
+                combat_state.block_active = false;
+            }
+        }
+    }
+}
+
+/// Reset AI opponent position if knocked too far away
+fn ai_opponent_position_reset(
+    mut query: Query<
+        (
+            &mut Transform,
+            &mut LinearVelocity,
+            &AIOpponent,
+            &mut KnockdownState,
+            &mut AnimationState,
+        ),
+        With<AIOpponent>,
+    >,
+) {
+    for (mut transform, mut velocity, ai, mut knockdown_state, mut anim_state) in query.iter_mut() {
+        let distance_from_spawn = transform.translation.distance(ai.spawn_position);
+
+        // If too far from spawn point (more than 15 units), reset
+        if distance_from_spawn > 15.0 {
+            transform.translation = ai.spawn_position;
+            velocity.0 = Vec3::ZERO;
+            knockdown_state.is_knocked_down = false;
+            *anim_state = AnimationState::Idle;
+        }
     }
 }

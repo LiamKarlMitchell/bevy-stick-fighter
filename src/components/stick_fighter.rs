@@ -195,3 +195,27 @@ pub struct HealthBarUI;
 #[derive(Component)]
 pub struct HealthBarFill;
 
+/// AI opponent component - attacks and guards occasionally
+#[derive(Component)]
+pub struct AIOpponent {
+    pub spawn_position: Vec3,
+    pub health_regen_rate: f32,
+    pub attack_cooldown: Timer,
+    pub guard_cooldown: Timer,
+    pub guard_duration: Timer,
+    pub decision_timer: Timer,
+}
+
+impl Default for AIOpponent {
+    fn default() -> Self {
+        Self {
+            spawn_position: Vec3::new(3.0, 5.0, -5.0), // To the right of training dummy
+            health_regen_rate: 15.0, // HP per second (slightly slower than passive dummy)
+            attack_cooldown: Timer::from_seconds(2.0, TimerMode::Once),
+            guard_cooldown: Timer::from_seconds(3.0, TimerMode::Once),
+            guard_duration: Timer::from_seconds(1.0, TimerMode::Once),
+            decision_timer: Timer::from_seconds(1.5, TimerMode::Repeating), // Make decisions every 1.5s
+        }
+    }
+}
+
