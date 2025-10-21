@@ -75,6 +75,16 @@ Manages grappling interactions:
 - `grappled_entity`: Optional entity being held
 - `grapple_timer`: 1 second maximum hold duration
 
+#### TrainingDummy
+Training opponent for practice:
+- `spawn_position`: Vec3 position to respawn at
+- `health_regen_rate`: HP regeneration per second (default: 20.0)
+
+#### KnockdownState
+Tracks knockdown and recovery:
+- `is_knocked_down`: Currently knocked down flag
+- `recovery_timer`: 2 second timer before getting back up
+
 #### Other Components
 - `StickFigureRoot`: Marks the root entity
 - `PlayerController`: Identifies player-controlled characters
@@ -108,6 +118,15 @@ Procedurally generates a stick figure character:
 
 3. All parts use the same red material
 4. Parts are parented to root for hierarchical transformation
+
+#### `spawn_training_dummy`
+Spawns a training opponent for practice:
+1. Creates identical stick figure structure to player
+2. Uses blue material instead of red
+3. Spawns at position (0, 5, -5) - 5 units in front
+4. Adds TrainingDummy and KnockdownState components
+5. No PlayerController - won't respond to input
+6. Stands still for combo practice and damage testing
 
 ### Update Systems
 
@@ -251,6 +270,36 @@ Manages grapple positioning:
 - Maintains 1.0 unit distance
 - Sets grappled entity velocity to zero
 - Only active during grapple state
+
+#### `training_dummy_health_regen`
+Regenerates training dummy health:
+- Adds health_regen_rate HP per second
+- Default: 20 HP/sec
+- Caps at max_health (100)
+- Allows continuous practice without killing the dummy
+
+#### `training_dummy_knockdown_check`
+Detects when dummy should be knocked down:
+- Triggers on high velocity (>5.0 units/sec) - hit hard
+- Triggers on low health (<20 HP)
+- Triggers when airborne (y > 3.0) - thrown up
+- Sets is_knocked_down flag
+- Starts 2 second recovery timer
+
+#### `training_dummy_recovery`
+Handles getting back up:
+- Ticks recovery timer while knocked down
+- Must be grounded to recover
+- After 2 seconds, stands back up
+- Resets animation to Idle
+- Zeros velocity to prevent sliding
+
+#### `training_dummy_position_reset`
+Prevents dummy from getting lost:
+- Checks distance from spawn_position
+- If >15 units away, teleport back to spawn
+- Resets velocity and knockdown state
+- Ensures dummy stays in practice area
 
 ## Combat Mechanics Deep Dive
 

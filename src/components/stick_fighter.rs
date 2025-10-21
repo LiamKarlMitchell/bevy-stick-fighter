@@ -154,3 +154,35 @@ impl Default for GrappleState {
         }
     }
 }
+
+/// Training dummy component - non-player opponent for practice
+#[derive(Component)]
+pub struct TrainingDummy {
+    pub spawn_position: Vec3,
+    pub health_regen_rate: f32,
+}
+
+impl Default for TrainingDummy {
+    fn default() -> Self {
+        Self {
+            spawn_position: Vec3::new(0.0, 5.0, -5.0),
+            health_regen_rate: 20.0, // HP per second
+        }
+    }
+}
+
+/// Knockdown state tracking
+#[derive(Component)]
+pub struct KnockdownState {
+    pub is_knocked_down: bool,
+    pub recovery_timer: Timer,
+}
+
+impl Default for KnockdownState {
+    fn default() -> Self {
+        Self {
+            is_knocked_down: false,
+            recovery_timer: Timer::from_seconds(2.0, TimerMode::Once),
+        }
+    }
+}

@@ -1,5 +1,18 @@
 # Stick Fighter Controls
 
+## Training Dummy
+
+A **blue training dummy** spawns in front of you to practice combos and test damage:
+- **Color**: Blue (you are red)
+- **Position**: Stands 5 units in front of you
+- **Health**: 100 HP with 20 HP/sec regeneration
+- **Behavior**: Stands still, does not attack
+- **Knockdown**: Gets knocked down when hit hard or health < 20
+- **Recovery**: Gets back up after 2 seconds on the ground
+- **Reset**: Teleports back to spawn if knocked too far (>15 units)
+
+Perfect for testing combos, damage values, and grapple throws!
+
 ## Movement Controls
 
 - **W / Up Arrow**: Move forward (away from camera)

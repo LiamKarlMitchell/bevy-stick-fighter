@@ -4,7 +4,7 @@ use bevy::prelude::*;
 use crate::components::stick_fighter::*;
 
 pub(crate) fn plugin(app: &mut App) {
-    app.add_systems(Startup, (setup_arena, spawn_stick_fighter))
+    app.add_systems(Startup, (setup_arena, spawn_stick_fighter, spawn_training_dummy))
         .add_systems(
             Update,
             (
@@ -22,6 +22,10 @@ pub(crate) fn plugin(app: &mut App) {
                 apply_damage,
                 handle_parry_counter,
                 update_grapple_state,
+                training_dummy_health_regen,
+                training_dummy_knockdown_check,
+                training_dummy_recovery,
+                training_dummy_position_reset,
             ),
         );
 }
@@ -180,6 +184,151 @@ fn spawn_stick_fighter(
             BodyPart::RightLowerLeg,
             Mesh3d(meshes.add(Capsule3d::new(0.1, 0.5))),
             MeshMaterial3d(stick_material.clone()),
+            Transform::from_xyz(-0.15, -0.9, 0.0),
+        ))
+        .id();
+
+    // Add all body parts as children of the root
+    commands.entity(root).add_children(&[
+        head,
+        torso,
+        left_upper_arm,
+        left_lower_arm,
+        right_upper_arm,
+        right_lower_arm,
+        left_upper_leg,
+        left_lower_leg,
+        right_upper_leg,
+        right_lower_leg,
+    ]);
+}
+
+/// Spawn a training dummy opponent
+fn spawn_training_dummy(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    let dummy_material = materials.add(StandardMaterial {
+        base_color: Color::srgb(0.2, 0.2, 0.8), // Blue color
+        ..default()
+    });
+
+    let spawn_pos = Vec3::new(0.0, 5.0, -5.0);
+
+    // Create the training dummy
+    let root = commands
+        .spawn((
+            StickFigureRoot,
+            StickFighter::default(),
+            TrainingDummy {
+                spawn_position: spawn_pos,
+                ..default()
+            },
+            KnockdownState::default(),
+            AnimationState::Idle,
+            GroundedState::default(),
+            CombatState::default(),
+            GrappleState::default(),
+            Transform::from_xyz(spawn_pos.x, spawn_pos.y, spawn_pos.z),
+            Visibility::default(),
+            RigidBody::Dynamic,
+            Collider::capsule(0.3, 1.0),
+            LockedAxes::ROTATION_LOCKED,
+            LinearVelocity::default(),
+        ))
+        .id();
+
+    // Head
+    let head = commands
+        .spawn((
+            BodyPart::Head,
+            Mesh3d(meshes.add(Sphere::new(0.3))),
+            MeshMaterial3d(dummy_material.clone()),
+            Transform::from_xyz(0.0, 1.2, 0.0),
+        ))
+        .id();
+
+    // Torso
+    let torso = commands
+        .spawn((
+            BodyPart::Torso,
+            Mesh3d(meshes.add(Capsule3d::new(0.15, 0.8))),
+            MeshMaterial3d(dummy_material.clone()),
+            Transform::from_xyz(0.0, 0.4, 0.0),
+        ))
+        .id();
+
+    // Arms
+    let left_upper_arm = commands
+        .spawn((
+            BodyPart::LeftUpperArm,
+            Mesh3d(meshes.add(Capsule3d::new(0.08, 0.4))),
+            MeshMaterial3d(dummy_material.clone()),
+            Transform::from_xyz(0.3, 0.8, 0.0).with_rotation(Quat::from_rotation_z(0.5)),
+        ))
+        .id();
+
+    let left_lower_arm = commands
+        .spawn((
+            BodyPart::LeftLowerArm,
+            Mesh3d(meshes.add(Capsule3d::new(0.08, 0.4))),
+            MeshMaterial3d(dummy_material.clone()),
+            Transform::from_xyz(0.6, 0.5, 0.0).with_rotation(Quat::from_rotation_z(0.8)),
+        ))
+        .id();
+
+    let right_upper_arm = commands
+        .spawn((
+            BodyPart::RightUpperArm,
+            Mesh3d(meshes.add(Capsule3d::new(0.08, 0.4))),
+            MeshMaterial3d(dummy_material.clone()),
+            Transform::from_xyz(-0.3, 0.8, 0.0).with_rotation(Quat::from_rotation_z(-0.5)),
+        ))
+        .id();
+
+    let right_lower_arm = commands
+        .spawn((
+            BodyPart::RightLowerArm,
+            Mesh3d(meshes.add(Capsule3d::new(0.08, 0.4))),
+            MeshMaterial3d(dummy_material.clone()),
+            Transform::from_xyz(-0.6, 0.5, 0.0).with_rotation(Quat::from_rotation_z(-0.8)),
+        ))
+        .id();
+
+    // Legs
+    let left_upper_leg = commands
+        .spawn((
+            BodyPart::LeftUpperLeg,
+            Mesh3d(meshes.add(Capsule3d::new(0.1, 0.5))),
+            MeshMaterial3d(dummy_material.clone()),
+            Transform::from_xyz(0.15, -0.3, 0.0),
+        ))
+        .id();
+
+    let left_lower_leg = commands
+        .spawn((
+            BodyPart::LeftLowerLeg,
+            Mesh3d(meshes.add(Capsule3d::new(0.1, 0.5))),
+            MeshMaterial3d(dummy_material.clone()),
+            Transform::from_xyz(0.15, -0.9, 0.0),
+        ))
+        .id();
+
+    let right_upper_leg = commands
+        .spawn((
+            BodyPart::RightUpperLeg,
+            Mesh3d(meshes.add(Capsule3d::new(0.1, 0.5))),
+            MeshMaterial3d(dummy_material.clone()),
+            Transform::from_xyz(-0.15, -0.3, 0.0),
+        ))
+        .id();
+
+    let right_lower_leg = commands
+        .spawn((
+            BodyPart::RightLowerLeg,
+            Mesh3d(meshes.add(Capsule3d::new(0.1, 0.5))),
+            MeshMaterial3d(dummy_material.clone()),
             Transform::from_xyz(-0.15, -0.9, 0.0),
         ))
         .id();
@@ -778,6 +927,110 @@ fn update_grapple_state(
                 target_transform.translation = grappler_transform.translation - direction * 1.0;
                 target_velocity.0 = Vec3::ZERO;
             }
+        }
+    }
+}
+
+/// Regenerate training dummy health over time
+fn training_dummy_health_regen(
+    mut query: Query<(&mut StickFighter, &TrainingDummy)>,
+    time: Res<Time>,
+) {
+    for (mut fighter, dummy) in query.iter_mut() {
+        if fighter.health < fighter.max_health {
+            fighter.health = (fighter.health + dummy.health_regen_rate * time.delta_secs())
+                .min(fighter.max_health);
+        }
+    }
+}
+
+/// Check if training dummy should be knocked down
+fn training_dummy_knockdown_check(
+    mut query: Query<
+        (&mut KnockdownState, &StickFighter, &LinearVelocity, &Transform),
+        With<TrainingDummy>,
+    >,
+) {
+    for (mut knockdown_state, fighter, velocity, transform) in query.iter_mut() {
+        // Already knocked down
+        if knockdown_state.is_knocked_down {
+            continue;
+        }
+
+        // Check if high velocity (hit hard) or very low health
+        let speed = velocity.0.length();
+        let is_hit_hard = speed > 5.0;
+        let is_very_low_health = fighter.health < 20.0;
+
+        // Check if position is far from ground (in air from being thrown)
+        let is_airborne = transform.translation.y > 3.0;
+
+        if is_hit_hard || is_very_low_health || is_airborne {
+            knockdown_state.is_knocked_down = true;
+            knockdown_state.recovery_timer = Timer::from_seconds(2.0, TimerMode::Once);
+        }
+    }
+}
+
+/// Handle training dummy recovery (getting back up)
+fn training_dummy_recovery(
+    mut query: Query<
+        (
+            &mut KnockdownState,
+            &mut AnimationState,
+            &mut LinearVelocity,
+            &GroundedState,
+        ),
+        With<TrainingDummy>,
+    >,
+    time: Res<Time>,
+) {
+    for (mut knockdown_state, mut anim_state, mut velocity, grounded) in query.iter_mut() {
+        if !knockdown_state.is_knocked_down {
+            continue;
+        }
+
+        // Tick the recovery timer
+        knockdown_state.recovery_timer.tick(time.delta());
+
+        // Must be grounded to start recovery
+        if grounded.is_grounded {
+            // Recovery timer finished - get back up
+            if knockdown_state.recovery_timer.finished() {
+                knockdown_state.is_knocked_down = false;
+                *anim_state = AnimationState::Idle;
+                velocity.0 = Vec3::ZERO;
+            } else {
+                // Still recovering, stay in hit state
+                *anim_state = AnimationState::Hit;
+                velocity.0 = Vec3::ZERO;
+            }
+        }
+    }
+}
+
+/// Reset training dummy position if knocked too far away
+fn training_dummy_position_reset(
+    mut query: Query<
+        (
+            &mut Transform,
+            &mut LinearVelocity,
+            &TrainingDummy,
+            &mut KnockdownState,
+            &mut AnimationState,
+        ),
+        With<TrainingDummy>,
+    >,
+) {
+    for (mut transform, mut velocity, dummy, mut knockdown_state, mut anim_state) in query.iter_mut() {
+        let distance_from_spawn = transform.translation.distance(dummy.spawn_position);
+
+        // If too far from spawn point (more than 15 units), reset
+        if distance_from_spawn > 15.0 {
+            transform.translation = dummy.spawn_position;
+            velocity.0 = Vec3::ZERO;
+            knockdown_state.is_knocked_down = false;
+            *anim_state = AnimationState::Idle;
         }
     }
 }
