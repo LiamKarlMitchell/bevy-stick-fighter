@@ -1,8 +1,8 @@
 use bevy::prelude::*;
 
-mod avian2d;
+mod avian3d;
 mod bevy_enhanced_input;
 
 pub(super) fn plugin(app: &mut App) {
-    app.add_plugins((avian2d::plugin, bevy_enhanced_input::plugin));
+    app.add_plugins((avian3d::plugin, bevy_enhanced_input::plugin));
 }

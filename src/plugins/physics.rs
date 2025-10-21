@@ -1,8 +1,8 @@
-use avian2d::prelude::*;
+use avian3d::prelude::*;
 use bevy::prelude::*;
 
 pub(crate) fn plugin(app: &mut App) {
-    app.insert_resource(Gravity(Vec2::ZERO));
+    app.insert_resource(Gravity(Vec3::new(0.0, -9.81, 0.0)));
 }
 
 // Example of a test for a plugin
